@@ -5,14 +5,15 @@ import java.util.Scanner;
 import java.util.Random;
 class Withdraw
 {
+	//class to be used for withdrawing from account
 	public static void with(Connection c, Statement stmt, float amt, int acc_no)
 	{
 		try
 	    {
 			stmt.executeUpdate("update account set net_bal = net_bal - "+amt+" where acc_no = "+acc_no+";");
-			SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy    HH:mm:ss");
+			SimpleDateFormat formatter = new SimpleDateFormat("dd/MM/yyyy      HH:mm:ss");
 			Date date = new Date();
-			stmt.executeUpdate("insert into transactions(datetime, acc_no, transac_type, amt_trans, trans_to, dep_by) values('"+formatter.format(date)+"', "+acc_no+", 'Withdraw', "+amt+", "+acc_no+", "+acc_no+");");
+			stmt.executeUpdate("insert into transactions(datetime, acc_no, transac_type, amt_trans, trans_to, dep_by) values('"+formatter.format(date)+"', "+acc_no+", 'Withdrawal', "+amt+", "+acc_no+", "+acc_no+");");
 			c.commit();
 			System.out.println("Withdrawn Rs. "+amt+" from your account successfully.");
 		}
@@ -25,6 +26,7 @@ class Withdraw
 }
 class Deposit
 {
+	//class to be used for depositing money to account
 	public static void dep(Connection c, Statement stmt, float amt, int acc_no)
 	{
 		try
@@ -46,6 +48,7 @@ class Deposit
 }
 class Transfer
 {
+	//class to be used for transfer amounts between accounts
 	public static void tran(Connection c, Statement stmt, float amt, int acc_no_from, int acc_no_to)
 	{
 		try
@@ -68,15 +71,17 @@ class Transfer
 }
 class History
 {
+	//class to be used for viewing transaction history of a particular account held by a particular user
 	public static void showHistory(Connection c, Statement stmt, int accno)
 	{
+		//NOTE: The "Transferred to account" and the "Deposited by account" columns will store the account number of the same account when the user is directly withdrawing money from or depositing money to their own account. The appropriate transaction name will be provided in the "Transaction type" column.
 		try
 	    {
 			ResultSet res = stmt.executeQuery("select * from transactions where acc_no = "+accno+";");
 			while(res.next())
 			{
-				System.out.println("Date: "+res.getString("datetime")+"\n Transaction Type:"+res.getString("transac_type")+"\n Amount transacted: "+res.getFloat("amt_trans")+"\n Transferred to account: "+res.getInt("trans_to")+"\n Deposited by: "+res.getInt("dep_by"));
-				System.out.println("");
+				System.out.println("Date: "+res.getString("datetime")+"\n Transaction Type: "+res.getString("transac_type")+"\n Amount transacted: Rs. "+res.getFloat("amt_trans")+"\n Transferred to account: "+res.getInt("trans_to")+"\n Deposited by account: "+res.getInt("dep_by"));
+				System.out.println("\n-----\n");
 			}
 			res.close();
 		}
@@ -89,6 +94,8 @@ class History
 }
 public class ATM
 {
+	//driver class
+	//following are some auxillary functions
 	static boolean isuser(Connection c, Statement stmt, int uid)
 	{
 		try
@@ -169,13 +176,12 @@ public class ATM
 				c.commit();
 			}
 			catch(SQLException e)
-			{
-				System.out.println("ERROR IN CREATION");
-			}
+			{	}
 			System.out.println("===================ATM INTERFACE===================");
 			System.out.println("Hello and welcome to our ATM service!\n");
 			while(choice!=4)
 			{
+				//user menu
 				System.out.println("------------------MAIN MENU------------------");
 				System.out.println("1. Create a user.");
 				System.out.println("2. Create an account.");
@@ -185,7 +191,7 @@ public class ATM
 				choice = sc.nextInt();
 				switch(choice)
 				{
-					case 1:
+					case 1: //new user creation
 						u = r.nextInt(9000)+1000;
 						sc.nextLine();
 						System.out.println("Your user ID is "+u+".\nEnter your name:");
@@ -194,9 +200,10 @@ public class ATM
 						p = sc.nextLine();
 						stmt.executeUpdate("insert into user (userid, username, pwd) values ("+u+", '"+un+"','"+p+"');");
 						c.commit();
-						System.out.println("A user has been created!\n\n");
+						System.out.println(un+"'s user "+u+" has been created!\n\n");
 					break;
-					case 2:
+					case 2://new account creation
+					//NOTE: An assumption has been made that than one user may hold more than one account, but vice versa is not a possibility.
 						System.out.println("Enter your valid user ID (4 digits):");
 						u = sc.nextInt();
 						if(isuser(c, stmt, u)==true)
@@ -209,7 +216,7 @@ public class ATM
 						else
 							System.out.println("This is an invalid ID. Please try again.\n\n");
 					break;
-					case 3:
+					case 3://logging in to a certain user's certain account
 						System.out.println("Enter your valid user ID (4 digits):");
 						u = sc.nextInt();
 						if (isuser(c, stmt, u)==false)
@@ -232,22 +239,23 @@ public class ATM
 							System.out.println("This is an invalid account. Please try again.\n\n");
 							continue;
 						}
-						System.out.println("Logged in successfully!\n");
+						System.out.println("Logged in successfully!\nWelcome, "+stmt.executeQuery("select username from user where userid = "+ u +";").getString("username")+"!");
 						ch = 0;
 						while(ch!=5)
 						{
+							//account menu
 							System.out.println("\n-----------ACCOUNT MENU-----------");
-							System.out.println("1. Deposit money.\n2. Withdraw money\n3. Transfer money.\n4. See transaction history.\n5. Quit");
+							System.out.println("1. Deposit money to account.\n2. Withdraw money from account.\n3. Transfer money to another account.\n4. See transaction history on this account.\n5. Quit account menu.");
 							System.out.println("Please enter the serial number of the\naction you would like to take:");
 							ch = sc.nextInt();
 							switch(ch)
 							{
-								case 1:
+								case 1://Deposit
 									System.out.println("How much to be deposited?\nEnter amount:");
 									a = sc.nextFloat();
 									Deposit.dep(c, stmt, a, newac);
 								break;
-								case 2:
+								case 2://Withdraw
 									System.out.println("How much to be withdrawn?\nEnter amount:");
 									a = sc.nextFloat();
 									if (stmt.executeQuery("select net_bal from account where acc_no="+newac+";").getFloat("net_bal") > a)
@@ -255,7 +263,7 @@ public class ATM
 									else
 										System.out.println("Not enough money in account, please deposit first!");
 								break;
-								case 3:
+								case 3://Transfer
 									System.out.println("Which account to be transferred to?\nEnter account number:");
 									newac2 = sc.nextInt();
 									System.out.println("How much to be transferred?\nEnter amount:");
@@ -265,21 +273,24 @@ public class ATM
 									else
 										System.out.println("Not enough money in account, please deposit first!");
 								break;
-								case 4:
+								case 4://Show history
 									System.out.println("Showing transaction history:");
 									History.showHistory(c, stmt, newac);
 								break;
-								case 5:
-									System.out.println("Logging out and redirecting to the main menu...");
+								case 5://Quit
+									System.out.println("Logging out and redirecting to the main menu...\n");
 								break;
 								default:
-									System.out.println("Invalid!");
+									System.out.println("Invalid!\n");
 								break;
 							}
 						}
 					break;
 					case 4:
-						System.out.println("Bye.");
+						System.out.println("=====================FAREWELL=====================");
+					break;
+					default:
+						System.out.println("Invalid!\n");
 					break;
 				}
 			}
